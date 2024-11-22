@@ -17,8 +17,9 @@
 #include <stdio.h>
 #include <time.h>
 #include <stdlib.h>
+#include <math.h>
 
-#include <mpi.h>
+#include "mpi.h"
 
 int sum_to_num(int sum_to) {
     int my_id = 0;
@@ -92,7 +93,16 @@ void hava_dependency() {
     printf("id %d sum: %d\n", my_id, sum);
 }
 
-void my_broadcast(double* buff, int count, int root) {
+void my_broadcast(double *buff, int count, int root) {
+//    srand(time(NULL));
+//    double rds[5];
+//    if (my_id == 0) {
+//        for (int i = 0; i < 5; i++) {
+//            rds[i] = rand() / (RAND_MAX + 1.0);
+//        }
+//    }
+//    my_broadcast(rds, 5, 0);
+
     int my_id = 0;
     int size = 0;
     MPI_Comm_rank(MPI_COMM_WORLD, &my_id);
@@ -112,6 +122,24 @@ void my_broadcast(double* buff, int count, int root) {
     putchar('\n');
 }
 
+void fibonacci() {
+    int my_id = 0;
+    int size = 0;
+    MPI_Comm_rank(MPI_COMM_WORLD, &my_id);
+    MPI_Comm_size(MPI_COMM_WORLD, &size);
+
+    int num1 = my_id;
+    int num2 = 0;
+    for (int i = my_id - 1; i >= 0 && i >= my_id - 2; i--) {
+        MPI_Recv(i == my_id - 2 ? &num1 : &num2, 1, MPI_INT, i, 99, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+    }
+    const int sum = num1 + num2;
+    printf("id %d: %d\n", my_id, sum);
+    for (int i = my_id + 1; i < size && i <= my_id + 2; i++) {
+        MPI_Send(&sum, 1, MPI_INT, i, 99, MPI_COMM_WORLD);
+    }
+}
+
 int main(int argc, char *argv[]) {
     int my_id = 0;
     int size = 0;
@@ -122,15 +150,10 @@ int main(int argc, char *argv[]) {
 //    MPI_Recv(&receive, 1, MPI_INT, 1, 99, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
 //    MPI_Finalize();
 
-    srand(time(NULL));
-    double rds[5];
-    if (my_id == 0) {
-        for (int i = 0; i < 5; i++) {
-            rds[i] = rand() / (RAND_MAX + 1.0);
-        }
+    fibonacci();
+    if (my_id == size - 1) {
+        putchar('\n');
     }
-    my_broadcast(rds, 5, 0);
-
 
     MPI_Finalize();
     return 0;
