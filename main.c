@@ -140,6 +140,58 @@ void fibonacci() {
     }
 }
 
+void calc_pi(void) {
+    int my_id = 0;
+    int size = 0;
+    MPI_Comm_rank(MPI_COMM_WORLD, &my_id);
+    MPI_Comm_size(MPI_COMM_WORLD, &size);
+
+    double sum = 0;
+#define N 10000
+    for (int i = my_id; i < N; i += size) {
+        sum += (1 / N) * (4 / (1 + pow(i / N, 2)));
+    }
+    double global_sum = 0;
+    printf("%d proc: %f\n", my_id, sum);
+    MPI_Reduce(&sum,       // 输入缓冲区（本地值）
+               &global_sum,        // 输出缓冲区（全局总和，只有 root 进程有值）
+               1,                  // 输入缓冲区中元素个数
+               MPI_DOUBLE,            // 数据类型
+               MPI_SUM,            // 操作类型（求和）
+               0,                  // root 进程的 rank
+               MPI_COMM_WORLD);    // 通信域
+    if (my_id == 0) {
+        double pi = 4 * (1 - sum);
+        printf("sum: %f\n", pi);
+    }
+}
+
+void monte_carlo_pi() {
+    int my_id = 0;
+    int size = 0;
+    MPI_Comm_rank(MPI_COMM_WORLD, &my_id);
+    MPI_Comm_size(MPI_COMM_WORLD, &size);
+
+    srand(time(NULL) + my_id);
+    int m = 100000;
+    int n = 0;
+    for (int i = 0; i < m; i++) {
+        double x = (double)rand() / (RAND_MAX + 1.0);
+        double y = (double)rand() / (RAND_MAX + 1.0);
+        n += (pow(x - 0.5, 2) + pow(y - 0.5, 2) < 0.25);
+    }
+    printf("%d proc: %f\n", my_id, 4.0F * n / m);
+    int global_m;
+    int global_n;
+    MPI_Reduce(&m, &global_m, 1, MPI_INT, MPI_SUM, 0, MPI_COMM_WORLD);
+    MPI_Reduce(&n, &global_n, 1, MPI_INT, MPI_SUM, 0, MPI_COMM_WORLD);
+    if (my_id == 0) {
+        printf("all sum: %f\n", 4.0F * global_n / global_m);
+//        printf("all m: %d", global_m);
+//        printf("all n: %d", global_n);
+    }
+}
+
 int main(int argc, char *argv[]) {
     int my_id = 0;
     int size = 0;
@@ -150,10 +202,7 @@ int main(int argc, char *argv[]) {
 //    MPI_Recv(&receive, 1, MPI_INT, 1, 99, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
 //    MPI_Finalize();
 
-    fibonacci();
-    if (my_id == size - 1) {
-        putchar('\n');
-    }
+    monte_carlo_pi();
 
     MPI_Finalize();
     return 0;
