@@ -122,12 +122,7 @@ void my_broadcast(double *buff, int count, int root) {
     putchar('\n');
 }
 
-void fibonacci() {
-    int my_id = 0;
-    int size = 0;
-    MPI_Comm_rank(MPI_COMM_WORLD, &my_id);
-    MPI_Comm_size(MPI_COMM_WORLD, &size);
-
+void fibonacci(int my_id, int size) {
     int num1 = my_id;
     int num2 = 0;
     for (int i = my_id - 1; i >= 0 && i >= my_id - 2; i--) {
@@ -140,12 +135,7 @@ void fibonacci() {
     }
 }
 
-void calc_pi(void) {
-    int my_id = 0;
-    int size = 0;
-    MPI_Comm_rank(MPI_COMM_WORLD, &my_id);
-    MPI_Comm_size(MPI_COMM_WORLD, &size);
-
+void calc_pi(int my_id, int size) {
     double sum = 0;
 #define N 10000
     for (int i = my_id; i < N; i += size) {
@@ -166,12 +156,7 @@ void calc_pi(void) {
     }
 }
 
-void monte_carlo_pi() {
-    int my_id = 0;
-    int size = 0;
-    MPI_Comm_rank(MPI_COMM_WORLD, &my_id);
-    MPI_Comm_size(MPI_COMM_WORLD, &size);
-
+void monte_carlo_pi(int my_id, int size) {
     srand(time(NULL) + my_id);
     int m = 100000;
     int n = 0;
@@ -192,6 +177,40 @@ void monte_carlo_pi() {
     }
 }
 
+void calc_pi_by_expression(int my_id, int size, int n) {
+    double sum_of_single = 0;
+    for (int i = my_id; i <= n; i += size) {
+        sum_of_single += (1.0 / pow(16, i)) * ((4.0 / (8 * i + 1)) -
+                                               (2.0 / (8 * i + 4)) -
+                                               (1.0 / (8 * i + 5)) -
+                                               (1.0 / (8 * i + 6)));
+    }
+    double receive_sum = 0;
+    MPI_Reduce(&sum_of_single, &receive_sum, 1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
+    if (my_id == 0) {
+        printf("all sum: %f\n", receive_sum);
+    }
+}
+
+void calc_e(int my_id, int size, int n) {
+    double single_sum = 0;
+    double reciprocal_of_factorial = 1;
+    for (int i = 2; i <= my_id; i++) {
+        reciprocal_of_factorial *= 1.0 / i;
+    }
+    for (int i = my_id; i <= n; i += size) {
+        for (int j = i - size + 1; j <= i && j >= 1; j++) {
+            reciprocal_of_factorial *= 1.0 / j;
+        }
+        single_sum += reciprocal_of_factorial;
+    }
+    double all_sum = 0;
+    MPI_Reduce(&single_sum, &all_sum, 1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
+    if (my_id == 0) {
+        printf("%f\n", all_sum);
+    }
+}
+
 int main(int argc, char *argv[]) {
     int my_id = 0;
     int size = 0;
@@ -202,7 +221,8 @@ int main(int argc, char *argv[]) {
 //    MPI_Recv(&receive, 1, MPI_INT, 1, 99, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
 //    MPI_Finalize();
 
-    monte_carlo_pi();
+    const int n = 1000;
+    calc_e(my_id, size, n);
 
     MPI_Finalize();
     return 0;
